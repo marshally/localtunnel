@@ -15,10 +15,11 @@ class LocalTunnel::Tunnel
 
   attr_accessor :port, :key, :host
 
-  def initialize(port, key)
+  def initialize(port, key, host=nil, user=nil)
     @port = port
     @key  = key
-    @host = ""
+    @host = host
+    @user = user
   end
 
   def register_tunnel(key=@key)
@@ -40,20 +41,24 @@ class LocalTunnel::Tunnel
     exit
   end
 
-  def start_tunnel
+  def start_tunnel(options={})
+
     port = @port
-    tunnel = @tunnel
-    gateway = Net::SSH::Gateway.new(@host, tunnel['user'], :auth_methods => %w{ publickey })
-    gateway.open_remote(port.to_i, '127.0.0.1', tunnel['through_port'].to_i) do |rp,rh|
+    tunnel = options || @tunnel
+    user = tunnel['user'] || @user
+
+    through_port = (tunnel['through_port'] || 2222).to_i
+    gateway = Net::SSH::Gateway.new(@host, user, :auth_methods => %w{ publickey })
+    gateway.open_remote(port.to_i, '127.0.0.1', through_port) do |rp,rh|
       puts "   " << tunnel['banner'] if tunnel.has_key? 'banner'
       if File.exists?(File.expand_path(SHELL_HOOK_FILE))
-        system "#{File.expand_path(SHELL_HOOK_FILE)} ""#{tunnel['host']}""" 
+        system "#{File.expand_path(SHELL_HOOK_FILE)} ""#{tunnel['host']}"""
         if !$?.success?
           puts "   An error occurred executing the callback hook #{SHELL_HOOK_FILE}"
           puts "   (Make sure it is executable)"
         end
       end
-      puts "   Port #{port} is now publicly accessible from http://#{tunnel['host']} ..."
+      puts "   Port #{port} is now publicly accessible from http://#{@host}:#{through_port} ..."
       begin
         sleep 1 while true
       rescue Interrupt

@@ -24,18 +24,27 @@
 
 require 'rubygems'
 require 'optparse'
-require 'localtunnel'
+require_relative '../lib/localtunnel'
 
+user = nil
+host = nil
 key = nil
+
 options = OptionParser.new do |o|
-  o.banner = 
+  o.banner =
     "Usage: localtunnel [options] <localport>\n\n" +
     "The file .localtunnel_callback, if it exists in the current working directory,\n"+
     "will be executed with the tunnel endpoint as the first argument once the \n" +
     "tunnel is started\n\n"
-  
+
   o.on("-k", "--key FILE", "upload a public key for authentication") do |k|
     key = File.exist?(k.to_s) ? File.open(k).read : nil
+  end
+  o.on("-t", "--host HOST", "remote host") do |k|
+    host = k
+  end
+  o.on("-u", "--user USER", "remote user") do |k|
+    user = k
   end
   o.on('-h', "--help", "show this help") { puts o; exit }
 end
@@ -47,6 +56,8 @@ unless local_port.to_i.between?(1, 65535)
   exit
 end
 
-t = LocalTunnel::Tunnel.new(local_port, key)
-t.register_tunnel
+t = LocalTunnel::Tunnel.new(local_port, key, host, user)
+unless host
+  t.register_tunnel
+end
 t.start_tunnel
